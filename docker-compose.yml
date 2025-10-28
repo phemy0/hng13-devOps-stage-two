@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  app_blue:
+    image: ${BLUE_IMAGE}
+    container_name: app_blue
+    environment:
+      - RELEASE_ID=${RELEASE_ID_BLUE}
+      - PORT=${BLUE_PORT}
+      - APP_POOL=blue
+    ports:
+      - "${BLUE_PORT}:${BLUE_PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${BLUE_PORT}/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  app_green:
+    image: ${GREEN_IMAGE}
+    container_name: app_green
+    environment:
+      - RELEASE_ID=${RELEASE_ID_GREEN}
+      - PORT=${GREEN_PORT}
+      - APP_POOL=green
+    ports:
+      - "${GREEN_PORT}:${GREEN_PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${GREEN_PORT}/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "${NGINX_PORT}:80"
+    depends_on:
+      - app_blue
+      - app_green
+    environment:
+      - ACTIVE_POOL=${ACTIVE_POOL}
+      - BLUE_PORT=${BLUE_PORT}
+      - GREEN_PORT=${GREEN_PORT}
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template
+    command: /bin/sh -c "envsubst '$$ACTIVE_POOL $$BLUE_PORT $$GREEN_PORT' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
